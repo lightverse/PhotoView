@@ -47,12 +47,13 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
 
     private var hadInit = false
 
-    private val zoomDetector = ZoomMotionDetector(ViewConfiguration.get(context))
+    private val zoomDetector = ZoomDetector(ViewConfiguration.get(context))
     private val translateDetector = TranslateDetector(ViewConfiguration.get(context))
 
-    private var minScale = 0.1f
-    var maxScale = 10.0f
+    private var minScale = 1.0f
+    private var maxScale = 1.0f
 
+    private var maxZoomScale = 10.0f
 
     private var mInitScaleX = -1.0f
     private var mInitScaleY = -1.0f
@@ -105,6 +106,7 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
             }
 
             minScale = scale
+            maxScale = maxZoomScale * minScale
             val matrix = Matrix()
             matrix.setScale(scale,scale)
             matrix.postTranslate(dx,dy)

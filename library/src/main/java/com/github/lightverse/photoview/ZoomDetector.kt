@@ -11,7 +11,7 @@ import android.view.ViewConfiguration
  * Created by lightverse on 2018/4/27.
  */
 
-class ZoomMotionDetector(configuration: ViewConfiguration): MotionEventDetector {
+class ZoomDetector(configuration: ViewConfiguration): MotionEventDetector {
 
     val DEBUG = false
 
@@ -97,7 +97,7 @@ class ZoomMotionDetector(configuration: ViewConfiguration): MotionEventDetector 
             mZoomMatrix.getValues(zoomScaleValue)
             mLastMatrix.getValues(lastScaleValue)
 
-            Log.e("ZoomMotionDetector","zoom=${zoomScaleValue[2]}\n" +
+            Log.e("ZoomDetector","zoom=${zoomScaleValue[2]}\n" +
                     "last=${lastScaleValue[2]}\n" +
                     "out=${outScaleValue[2]}")
 
@@ -155,7 +155,7 @@ fun Rect.diagonalSquare():Int{
    return width*width + height*height
 }
 
-interface SimpleZoomChangeListener: ZoomMotionDetector.OnZoomChangeListener {
+interface SimpleZoomChangeListener: ZoomDetector.OnZoomChangeListener {
     override fun onZoomStart() {}
 
     override fun onZoomChange() {}
