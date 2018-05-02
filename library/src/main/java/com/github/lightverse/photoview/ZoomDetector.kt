@@ -49,8 +49,8 @@ class ZoomMotionDetector(configuration: ViewConfiguration): MotionEventDetector 
     override fun onTouchEvent(event:MotionEvent):Boolean{
         mPointerCount = event.pointerCount
         val result = event.action and  MotionEvent.ACTION_MASK
-        if((event.action == MotionEvent.ACTION_CANCEL) || (event.action == MotionEvent.ACTION_UP)
-                || (result == MotionEvent.ACTION_POINTER_UP)){
+        if(mIsBeingDragged && ((event.action == MotionEvent.ACTION_CANCEL) || (event.action == MotionEvent.ACTION_UP)
+                || (result == MotionEvent.ACTION_POINTER_UP))){
             mZoomChangeListener?.onZoomEnd()
             resetData()
             return true
