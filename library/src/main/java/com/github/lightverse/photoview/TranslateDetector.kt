@@ -29,6 +29,7 @@ class TranslateDetector(configuration: ViewConfiguration): MotionEventDetector {
     private var mIsReseated = false //need this in case of mLastMatrix set multi
 
     var mTranslateMatrix = Matrix()
+    private val mTranslateDeltaMatrix = Matrix()
 
     var mTranslateChangeListener: OnTranslateChangeListener? = null
 
@@ -58,8 +59,10 @@ class TranslateDetector(configuration: ViewConfiguration): MotionEventDetector {
                     if(mIsReseated){
                         mIsReseated = false
                     }
+                    mTranslateDeltaMatrix.setTranslate(-MatrixUtil.getTransX(mTranslateMatrix),-MatrixUtil.getTransY(mTranslateMatrix))
                     mTranslateMatrix.setTranslate((mTempPoint.x - mDownPoint.x),mTempPoint.y - mDownPoint.y)
-                    mTranslateChangeListener?.onTranslate()
+                    mTranslateDeltaMatrix.postConcat(mTranslateMatrix)
+                    mTranslateChangeListener?.onTranslate(mTranslateDeltaMatrix)
                     handler = true
                 }
             }
@@ -110,7 +113,7 @@ class TranslateDetector(configuration: ViewConfiguration): MotionEventDetector {
 
     interface OnTranslateChangeListener{
         fun onTranslateStart()
-        fun onTranslate()
+        fun onTranslate(matrix: Matrix)
         fun onTranslateEnd()
     }
 }
@@ -118,7 +121,7 @@ class TranslateDetector(configuration: ViewConfiguration): MotionEventDetector {
 interface SimpleTranslateChangeListener: TranslateDetector.OnTranslateChangeListener {
     override fun onTranslateStart() {}
 
-    override fun onTranslate() {}
+    override fun onTranslate(matrix: Matrix) {}
 
     override fun onTranslateEnd() {}
 }

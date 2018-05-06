@@ -66,7 +66,6 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
     private val mLastRealTranslateMatrix = Matrix()
 
 
-
     private val mTempPointF = PointF()
 
     private val mTempZoomMatrix = Matrix()
@@ -110,7 +109,8 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
             val matrix = Matrix()
             matrix.setScale(scale,scale)
             matrix.postTranslate(dx,dy)
-            savePhotoMatrix(matrix)
+            mPhotoMatrix.set(matrix)
+            imageMatrix = mPhotoMatrix
         }
         super.onLayout(changed, left, top, right, bottom)
     }
@@ -145,13 +145,13 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
         savePhotoMatrix(zoomDetector.mZoomMatrix)
     }
 
-    override fun onZoomChange() {
+    override fun onZoomChange(matrix: Matrix) {
         //consider the max and min scale
         logMatrix(zoomDetector.mZoomMatrix)
 
         mLastRawZoomMatrix.set(zoomDetector.mZoomMatrix)
 
-        updatePhotoMatrix(zoomDetector.mZoomMatrix)
+        updatePhotoMatrix(matrix)
     }
 
     /**
@@ -159,39 +159,18 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
      */
     private fun updatePhotoMatrix(nextMatrix: Matrix){
 
+        mTempZoomMatrix.set(mPhotoMatrix)
+        mTempZoomMatrix.postConcat(nextMatrix)
+        val currentScale = MatrixUtil.getScale(mTempZoomMatrix)
+
         //check scale
-        val lastScale = MatrixUtil.getScale(mLastMatrix)
-        val expectMinScale = minScale/lastScale
-        val expectMaxScale = maxScale/lastScale
-
-        val nextScale = MatrixUtil.getScale(nextMatrix)
-
-        when (nextScale) {
-            !in expectMinScale..expectMaxScale -> {
-                val scale = if(nextScale <= expectMinScale) expectMinScale else expectMaxScale
-
-                val resultPointF = zoomDetector.getTransPointFByScale(scale,mTempPointF)
-
-                val result = resultPointF?.let {
-                    mTempZoomMatrix.setScale(scale,scale)
-                    mTempZoomMatrix.postTranslate(it.x,it.y)
-                    mTempZoomMatrix
-                }
-
-                if(result !is Matrix){
-                    mTempZoomMatrix.set(nextMatrix)
-                }
-
-            }
-            else -> {
-                mTempZoomMatrix.set(nextMatrix)
-            }
+        if(currentScale !in minScale..maxScale){
+            mTempZoomMatrix.set(mPhotoMatrix)
+            return
         }
 
         //check trans
-
-        mTempTransMatrix.set(mLastMatrix)
-        mTempTransMatrix.postConcat(mTempZoomMatrix)
+        mTempTransMatrix.set(mTempZoomMatrix)
 
         val endScale = MatrixUtil.getScale(mTempTransMatrix)
         val maxInitScale = Math.max(mInitScaleX,mInitScaleY)
@@ -241,8 +220,7 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
                 }
             }
         }
-        mPhotoMatrix.set(mLastMatrix)
-        mPhotoMatrix.postConcat(mTempZoomMatrix)
+        mPhotoMatrix.set(mTempTransMatrix)
         mPhotoMatrix.postTranslate(transX,transY)
         imageMatrix = mPhotoMatrix
     }
@@ -256,96 +234,98 @@ class PhotoView(context: Context,attr: AttributeSet? = null):ImageView(context,a
      */
     private fun savePhotoMatrix(nextMatrix: Matrix){
 
-        //check scale
-        val lastScale = MatrixUtil.getScale(mLastMatrix)
-        val expectMinScale = minScale/lastScale
-        val expectMaxScale = maxScale/lastScale
-
-        val nextScale = MatrixUtil.getScale(nextMatrix)
-
-        when (nextScale) {
-            !in expectMinScale..expectMaxScale -> {
-                val scale = if(nextScale <= expectMinScale) expectMinScale else expectMaxScale
-
-                val resultPointF = zoomDetector.getTransPointFByScale(scale,mTempPointF)
-
-                val result = resultPointF?.let {
-                    mTempZoomMatrix.setScale(scale,scale)
-                    mTempZoomMatrix.postTranslate(it.x,it.y)
-                    mTempZoomMatrix
-                }
-
-                if(result !is Matrix){
-                    mTempZoomMatrix.set(nextMatrix)
-                }
-
-            }
-            else -> {
-                mTempZoomMatrix.set(nextMatrix)
-            }
-        }
-
-        //check trans
-
-        mTempTransMatrix.set(mLastMatrix)
-        mTempTransMatrix.postConcat(mTempZoomMatrix)
-
-        val endScale = MatrixUtil.getScale(mTempTransMatrix)
-        val maxInitScale = Math.max(mInitScaleX,mInitScaleY)
-
-        val deltaLeft = MatrixUtil.getTransX(mTempTransMatrix)
-        val deltaTop = MatrixUtil.getTransY(mTempTransMatrix)
-        val deltaRight = drawable.intrinsicWidth*endScale + deltaLeft - width
-        val deltaBottom = drawable.intrinsicHeight*endScale + deltaTop - height
-        var transX = 0f
-        var transY = 0f
-        if(endScale > maxInitScale){
-            //all contains view
-            if(deltaLeft > 0){
-                transX = -deltaLeft
-            }else if(deltaRight < 0){
-                transX = -deltaRight
-            }
-            if(deltaTop > 0){
-                transY = -deltaTop
-            }else if(deltaBottom < 0){
-                transY = -deltaBottom
-            }
-        }else{
-            if(maxInitScale == mInitScaleX){//x比例最大,上下可移动,左右必须在view外面
-                //all contains view
-                if(deltaLeft > 0){
-                    transX = -deltaLeft
-                }else if(deltaRight < 0){
-                    transX = -deltaRight
-                }
-
-                if(deltaTop < 0){
-                    transY = -deltaTop
-                }else if(deltaBottom > 0){
-                    transY = -deltaBottom
-                }
-            }else{
-                if(deltaTop > 0){
-                    transY = -deltaTop
-                }else if(deltaBottom < 0){
-                    transY = -deltaBottom
-                }
-                if(deltaLeft < 0){
-                    transX = -deltaLeft
-                }else if(deltaRight > 0){
-                    transX = -deltaRight
-                }
-            }
-        }
-
-        mLastMatrix.postConcat(mTempZoomMatrix)
-        mLastMatrix.postTranslate(transX,transY)
-        imageMatrix = mLastMatrix
+//        //check scale
+//        val lastScale = MatrixUtil.getScale(mLastMatrix)
+//        val expectMinScale = minScale/lastScale
+//        val expectMaxScale = maxScale/lastScale
+//
+//        val nextScale = MatrixUtil.getScale(nextMatrix)
+//
+//        when (nextScale) {
+//            !in expectMinScale..expectMaxScale -> {
+//                val scale = if(nextScale <= expectMinScale) expectMinScale else expectMaxScale
+//
+//                val resultPointF = zoomDetector.getTransPointFByScale(scale,mTempPointF)
+//
+//                val result = resultPointF?.let {
+//                    mTempZoomMatrix.setScale(scale,scale)
+//                    mTempZoomMatrix.postTranslate(it.x,it.y)
+//                    mTempZoomMatrix
+//                }
+//
+//                if(result !is Matrix){
+//                    mTempZoomMatrix.set(nextMatrix)
+//                }
+//
+//            }
+//            else -> {
+//                mTempZoomMatrix.set(nextMatrix)
+//            }
+//        }
+//
+//        //check trans
+//
+//        mTempTransMatrix.set(mLastMatrix)
+//        mTempTransMatrix.postConcat(mTempZoomMatrix)
+//
+//        val endScale = MatrixUtil.getScale(mTempTransMatrix)
+//        val maxInitScale = Math.max(mInitScaleX,mInitScaleY)
+//
+//        val deltaLeft = MatrixUtil.getTransX(mTempTransMatrix)
+//        val deltaTop = MatrixUtil.getTransY(mTempTransMatrix)
+//        val deltaRight = drawable.intrinsicWidth*endScale + deltaLeft - width
+//        val deltaBottom = drawable.intrinsicHeight*endScale + deltaTop - height
+//        var transX = 0f
+//        var transY = 0f
+//        if(endScale > maxInitScale){
+//            //all contains view
+//            if(deltaLeft > 0){
+//                transX = -deltaLeft
+//            }else if(deltaRight < 0){
+//                transX = -deltaRight
+//            }
+//            if(deltaTop > 0){
+//                transY = -deltaTop
+//            }else if(deltaBottom < 0){
+//                transY = -deltaBottom
+//            }
+//        }else{
+//            if(maxInitScale == mInitScaleX){//x比例最大,上下可移动,左右必须在view外面
+//                //all contains view
+//                if(deltaLeft > 0){
+//                    transX = -deltaLeft
+//                }else if(deltaRight < 0){
+//                    transX = -deltaRight
+//                }
+//
+//                if(deltaTop < 0){
+//                    transY = -deltaTop
+//                }else if(deltaBottom > 0){
+//                    transY = -deltaBottom
+//                }
+//            }else{
+//                if(deltaTop > 0){
+//                    transY = -deltaTop
+//                }else if(deltaBottom < 0){
+//                    transY = -deltaBottom
+//                }
+//                if(deltaLeft < 0){
+//                    transX = -deltaLeft
+//                }else if(deltaRight > 0){
+//                    transX = -deltaRight
+//                }
+//            }
+//        }
+//
+//        mLastMatrix.postConcat(mTempZoomMatrix)
+//        mLastMatrix.postTranslate(transX,transY)
+//        mPhotoMatrix.set(mLastMatrix)
+        mLastMatrix.set(mPhotoMatrix)
+        imageMatrix = mPhotoMatrix
     }
 
-    override fun onTranslate() {
-        updatePhotoMatrix(translateDetector.mTranslateMatrix)
+    override fun onTranslate(matrix: Matrix) {
+        updatePhotoMatrix(matrix)
     }
 
     override fun onTranslateEnd() {

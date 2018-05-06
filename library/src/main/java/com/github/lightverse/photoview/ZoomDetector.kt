@@ -33,6 +33,11 @@ class ZoomDetector(configuration: ViewConfiguration): MotionEventDetector {
 
     var mZoomMatrix = Matrix()
 
+    private var mZoomDeltaMatrix = Matrix()
+
+
+    private val mTempMatrix = Matrix()
+
     private val mLastMatrix = Matrix()
 
 
@@ -89,10 +94,13 @@ class ZoomDetector(configuration: ViewConfiguration): MotionEventDetector {
             //focus center of the beginning always
             val transX = - Math.abs(mDownRect.centerX())*(scale - 1)
             val transY = - Math.abs(mDownRect.centerY())*(scale - 1)
-
+            mTempMatrix.reset()
+            mZoomMatrix.invert(mTempMatrix)
             mZoomMatrix.reset()
             mZoomMatrix.setScale(scale,scale)
             mZoomMatrix.postTranslate(transX,transY)
+            mTempMatrix.postConcat(mZoomMatrix)
+            mZoomDeltaMatrix.set(mTempMatrix)
 
             mZoomMatrix.getValues(zoomScaleValue)
             mLastMatrix.getValues(lastScaleValue)
@@ -101,7 +109,7 @@ class ZoomDetector(configuration: ViewConfiguration): MotionEventDetector {
                     "last=${lastScaleValue[2]}\n" +
                     "out=${outScaleValue[2]}")
 
-            mZoomChangeListener?.onZoomChange()
+            mZoomChangeListener?.onZoomChange(mZoomDeltaMatrix)
             handler = true
         }
 
@@ -132,7 +140,7 @@ class ZoomDetector(configuration: ViewConfiguration): MotionEventDetector {
 
     interface OnZoomChangeListener{
         fun onZoomStart()
-        fun onZoomChange()
+        fun onZoomChange(matrix: Matrix)
         fun onZoomEnd()
     }
 
@@ -158,7 +166,7 @@ fun Rect.diagonalSquare():Int{
 interface SimpleZoomChangeListener: ZoomDetector.OnZoomChangeListener {
     override fun onZoomStart() {}
 
-    override fun onZoomChange() {}
+    override fun onZoomChange(matrix: Matrix) {}
 
     override fun onZoomEnd() {}
 }
